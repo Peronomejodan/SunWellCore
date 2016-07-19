@@ -511,6 +511,26 @@ inline void KillRewarder::_InitXP(Player* player)
 			if (const CreatureTemplate* ct = _victim->ToCreature()->GetCreatureTemplate())
 				if (ct->ModHealth <= 0.75f && ct->ModHealth >= 0.0f)
 					_xp = uint32(_xp * ct->ModHealth);
+
+	//custom
+	if (sWorld->getBoolConfig(CONFIG_CUSTOM_ADVENTURE_MODE) && sWorld->getIntConfig(CONFIG_CUSTOM_ADVENTURE_KILLXP))
+	{
+		uint32 victim_level = _victim->getLevel();
+		uint32 multiplier = 1;
+
+		Creature * pCreature = _victim->ToCreature();
+
+		if (pCreature->isElite())
+			multiplier = 5;
+
+		if (pCreature->isWorldBoss())
+			multiplier = 40;
+
+		if ((sWorld->getIntConfig(CONFIG_CUSTOM_ADVENTURE_BOSSONLYXP) > player->GetAdventureLevel()) && !pCreature->isWorldBoss())
+			multiplier = 0;
+
+		player->AddAdventureXP(sWorld->getIntConfig(CONFIG_CUSTOM_ADVENTURE_KILLXP)*multiplier*victim_level*(victim_level + 2 - player->getLevel()));
+	}
 }
 
 inline void KillRewarder::_RewardHonor(Player* player)
@@ -1252,6 +1272,14 @@ bool Player::Create(uint32 guidlow, CharacterCreateInfo* createInfo)
     }
     // all item positions resolved
 
+	//Custom
+
+	if (sWorld->getBoolConfig(CONFIG_CUSTOM_ADVENTURE_MODE))
+	{
+		adventure_level = 1;
+		adventure_xp = 0;
+	}
+	
     return true;
 }
 
@@ -1808,6 +1836,88 @@ void Player::Update(uint32 p_time)
     {
         m_regenTimer += p_time;
         RegenerateAll();
+
+		//custom
+
+		if (sWorld->getBoolConfig(CONFIG_CUSTOM_ADVENTURE_MODE))
+			SetAdventureLevel(adventure_level);
+
+		if (sWorld->getBoolConfig(CONFIG_CUSTOM_RULES))
+		{
+			float health = GetHealthPct();
+			
+			if (health >= 90.f)
+			{
+				//Remove Wounded Auras
+				if (HasAura(95001))
+					RemoveAurasDueToSpell(95001);
+				if (HasAura(95002))
+					RemoveAurasDueToSpell(95002);
+				if (HasAura(95003))
+					RemoveAurasDueToSpell(95003);
+				//Add Heartened Aura
+				if (!HasAura(95000))
+					AddAura(95000, this);
+					//_CreateCustomAura();
+			}
+			else if (health >= 60.f && getClass() != CLASS_WARLOCK)
+			{
+				//Remove Wounded Auras
+				if (HasAura(95002))
+					RemoveAurasDueToSpell(95002);
+				if (HasAura(95003))
+					RemoveAurasDueToSpell(95003);
+				//Remove Heartened Aura
+				if (HasAura(95000))
+					RemoveAurasDueToSpell(95000);
+				//Add injured Aura
+				if (!HasAura(95001))
+					AddAura(95001, this);
+			}
+			else if (health >= 40.f && getClass() == CLASS_WARLOCK)
+			{
+				//Remove Wounded Auras
+				if (HasAura(95002))
+					RemoveAurasDueToSpell(95002);
+				if (HasAura(95003))
+					RemoveAurasDueToSpell(95003);
+				//Remove Heartened Aura
+				if (HasAura(95000))
+					RemoveAurasDueToSpell(95000);
+				//Add injured Aura
+				if (!HasAura(95001))
+					AddAura(95001, this);
+			}
+			else if (health >= 20.f)
+			{
+				//Remove Wounded Auras
+				if (HasAura(95001))
+					RemoveAurasDueToSpell(95001);
+				if (HasAura(95003))
+					RemoveAurasDueToSpell(95003);
+				//Remove Heartened Aura
+				if (HasAura(95000))
+					RemoveAurasDueToSpell(95000);
+				//Add wounded Aura
+				if (!HasAura(95002))
+					AddAura(95002, this);
+			}
+			else if (health < 20.f)
+			{
+				//Remove Wounded Auras
+				if (HasAura(95001))
+					RemoveAurasDueToSpell(95001);
+				if (HasAura(95002))
+					RemoveAurasDueToSpell(95002);
+				//Remove Heartened Aura
+				if (HasAura(95000))
+					RemoveAurasDueToSpell(95000);
+				//Add Grevious wounded Aura
+				if (!HasAura(95003))
+					AddAura(95003, this);
+			}
+		}
+		//Custom
     }
 
     if (m_deathState == JUST_DIED)
@@ -1977,6 +2087,9 @@ void Player::setDeathState(DeathState s, bool /*despawn = false*/)
 
 	if (NeedSendSpectatorData())
 		ArenaSpectator::SendCommand_UInt32Value(FindMap(), GetGUID(), "STA", IsAlive() ? 1 : 0);
+
+	if (sWorld->getBoolConfig(CONFIG_CUSTOM_ADVENTURE_MODE))
+		SubstractAdventureXP(sWorld->getIntConfig(CONFIG_CUSTOM_ADVENTURE_DEATHXP) * GetAdventureLevel());
 
     // restore resurrection spell id for player after aura remove
     if (s == JUST_DIED && cur && ressSpellId)
@@ -12342,13 +12455,81 @@ Item* Player::StoreNewItem(ItemPosCountVec const& dest, uint32 item, bool update
     if (pItem)
     {
         // pussywizard: obtaining blue or better items saves to db
-        if (ItemTemplate const* pProto = sObjectMgr->GetItemTemplate(item))
+		ItemTemplate const* pProto = sObjectMgr->GetItemTemplate(item);
+
+        if (pProto)
             if (pProto->Quality >= ITEM_QUALITY_RARE)
                 AdditionalSavingAddMask(ADDITIONAL_SAVING_INVENTORY_AND_GOLD);
 
         ItemAddedQuestCheck(item, count);
         UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_RECEIVE_EPIC_ITEM, item, count);
         UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_OWN_ITEM, item, count);
+
+
+		if (sWorld->getBoolConfig(CONFIG_CUSTOM_ADVENTURE_MODE) && sWorld->getBoolConfig(CONFIG_CUSTOM_RANDOMIZE_ITEM))
+		{
+			uint32 adventure_level = GetAdventureLevel();
+
+			if (roll_chance_f(sWorld->getFloatConfig(CONFIG_CUSTOM_RANDOMIZE_ITEM_CHANCE)*adventure_level))
+			{
+				uint32 itemLevel = pProto->ItemLevel;
+				uint32 itemClass = pProto->Class;
+				uint32 ItemSubClass = pProto->SubClass;
+				uint32 ItemQuality = pProto->Quality;
+
+				uint32 adventure_level = GetAdventureLevel();
+				uint32 reforgeLevel;
+
+				uint32 minQuality = sWorld->getIntConfig(CONFIG_CUSTOM_RANDOMIZE_ITEM_MIN_QUALITY);
+				uint32 minLevel = sWorld->getIntConfig(CONFIG_CUSTOM_RANDOMIZE_ITEM_MIN_LEVEL);
+
+				if (pProto && (itemClass == 2 || itemClass == 4) && (ItemQuality > minQuality) && (itemLevel>minLevel) && (SubstractAdventureXP(sWorld->getIntConfig(CONFIG_CUSTOM_ADVENTURE_ITEMXP)*itemLevel*ItemQuality*ItemQuality)))
+				{
+					if (!randomPropertyId)
+						randomPropertyId = pProto->RandomProperty;
+
+					if (randomPropertyId)
+					{
+						QueryResult result = WorldDatabase.PQuery("SELECT itemlevel FROM item_random_enhancement WHERE randomproperty = '%u' and class = '%u'and subclass = '%u' order by rand() LIMIT 1", randomPropertyId, itemClass, ItemSubClass);
+
+						if (result)
+						{
+							Field* fields = result->Fetch();
+							reforgeLevel = fields[0].GetUInt32();							
+						}
+					}
+
+					if (!reforgeLevel)
+						reforgeLevel = urand(10 + ItemQuality + adventure_level, floor(pProto->ItemLevel / (6 - ItemQuality)) + sWorld->getIntConfig(CONFIG_CUSTOM_RANDOMIZE_ITEM_DIFF)*adventure_level);
+					else
+						reforgeLevel = urand(reforgeLevel + ItemQuality, reforgeLevel + ItemQuality + floor(sWorld->getIntConfig(CONFIG_CUSTOM_RANDOMIZE_ITEM_DIFF)*adventure_level / 2));
+
+					int i = 0;
+					QueryResult result;
+
+					do
+					{
+						result = WorldDatabase.PQuery("SELECT randomproperty FROM item_random_enhancement WHERE itemlevel = '%u' and class = '%u'and subclass = '%u' order by rand() LIMIT 1", reforgeLevel, itemClass, ItemSubClass);
+						--reforgeLevel;
+
+						if (reforgeLevel < minLevel)
+							break;
+
+						++i;
+					} while (!result || i < 10);
+
+					if (result)
+					{
+						Field* fields = result->Fetch();
+						randomPropertyId = fields[0].GetUInt32();				
+					}
+
+					sLog->outDebug(LOG_FILTER_PLAYER_ITEMS, "Adding random property %u to item %u", randomPropertyId, item);
+				}		
+			}
+		}
+		
+
         if (randomPropertyId)
             pItem->SetItemRandomProperties(randomPropertyId);
         pItem = StoreItem(dest, pItem, update);
@@ -19221,6 +19402,11 @@ void Player::SaveToDB(bool create, bool logout)
     // save pet (hunter pet level and experience and all type pets health/mana).
     if (Pet* pet = GetPet())
         pet->SavePetToDB(PET_SAVE_AS_CURRENT, logout);
+
+	if (sWorld->getBoolConfig(CONFIG_CUSTOM_ADVENTURE_MODE))
+	{
+		StoreAdventureLevel();
+	}
 
 	// our: saving system
 	if (!create && !logout)
@@ -26957,3 +27143,203 @@ void Player::SummonPet(uint32 entry, float x, float y, float z, float ang, PetTy
 	AsynchPetSummon* asynchPetInfo = new AsynchPetSummon(entry, pos, petType, duration, createdBySpell, casterGUID);
 	Pet::LoadPetFromDB(this, asynchLoadType, entry, 0, false, asynchPetInfo);
 }
+
+//Custom
+uint32 Player::GetAdventureLevel()
+{
+	uint32 level = 0;
+	uint32 members = 0;
+
+	if (Group* pGroup = m_group.getTarget())
+	{
+		for (GroupReference* itr = pGroup->GetFirstMember(); itr != nullptr; itr = itr->next())
+		{
+			Player* pGroupGuy = itr->GetSource();
+			
+			if (pGroupGuy && pGroupGuy->IsAlive())
+			{
+				if (pGroupGuy->_GetAdventureLevel() < level)
+					level = pGroupGuy->_GetAdventureLevel();
+			}
+
+		}
+
+		level = ceil(level / members);
+	}
+	else
+		level = _GetAdventureLevel();
+
+
+	return level;
+}
+
+uint32 Player::_GetAdventureLevel()
+{
+	uint32 level = 0;
+
+	AuraApplicationMapBounds range = m_appliedAuras.equal_range(ADVENTURE_AURA);
+
+	for (AuraApplicationMap::const_iterator itr = range.first; itr != range.second; ++itr)
+	{
+		if (itr->second->GetBase()->GetStackAmount() == 0)
+			level = (uint32)itr->second->GetBase()->GetStackAmount();
+	}
+		
+	if (level > sWorld->getIntConfig(CONFIG_CUSTOM_ADVENTURE_MAX_LEVEL))
+		level = sWorld->getIntConfig(CONFIG_CUSTOM_ADVENTURE_MAX_LEVEL);
+
+	return level;
+}
+
+
+void Player::SetAdventureLevel(uint32 level)
+{
+	//Apply Aura
+
+	//if (GetCurrentSpell(CURRENT_GENERIC_SPELL) || GetCurrentSpell(CURRENT_CHANNELED_SPELL))
+	//	return;
+
+	if (level > sWorld->getIntConfig(CONFIG_CUSTOM_ADVENTURE_MAX_LEVEL))
+		level = sWorld->getIntConfig(CONFIG_CUSTOM_ADVENTURE_MAX_LEVEL);
+
+	if (GetAdventureLevel() == level)
+		return;
+
+	//Apply Aura
+	SetAuraStack(ADVENTURE_AURA, this,level);
+}
+
+
+void Player::AddAdventureXP(int32 xp)
+{
+	if (xp > 0)
+	{
+		uint32 max_xp = sWorld->getIntConfig(CONFIG_CUSTOM_ADVENTURE_LEVELXP) * adventure_level;
+		adventure_xp += xp;
+
+		if (adventure_xp > max_xp)
+		{
+			adventure_xp -= max_xp;
+			adventure_level++;
+
+			SetAdventureLevel(adventure_level);
+		}
+	}
+	else SubstractAdventureXP(abs(xp));
+}
+
+bool Player::SubstractAdventureXP(int32 xp)
+{
+	adventure_xp -= xp;
+	uint32 currentLevel = adventure_level;
+
+	while (adventure_xp < 0 && adventure_level > 1)
+	{
+		adventure_level--;
+		adventure_xp += sWorld->getIntConfig(CONFIG_CUSTOM_ADVENTURE_LEVELXP) * (adventure_level);
+		SetAdventureLevel(adventure_level);
+		return true;
+	}
+
+	SetAdventureLevel(currentLevel);
+	return false;
+}
+
+
+void Player::ResetAdventureLevel()
+{
+	adventure_level = 1;
+	adventure_xp = 0;
+}
+
+void Player::StoreAdventureLevel()
+{
+	SQLTransaction trans = CharacterDatabase.BeginTransaction();
+	PreparedStatement* stmt = NULL;
+
+	stmt = CharacterDatabase.GetPreparedStatement(CHAR_DELETE_ADVENTURE_LEVEL);
+	/* guid */
+	stmt->setUInt32(0, GetGUIDLow());
+	trans->Append(stmt);
+	
+		stmt = CharacterDatabase.GetPreparedStatement(CHAR_DELETE_ADVENTURE_LEVEL);
+	/* guid, adventurelevel,xplevel */
+	stmt->setUInt32(0, GetGUIDLow());
+	stmt->setUInt32(1, adventure_level);
+	stmt->setUInt32(2, adventure_xp);
+	trans->Append(stmt);
+	
+	CharacterDatabase.CommitTransaction(trans);	
+}
+
+/*
+void Player::_CreateCustomAura(uint32 spellid, uint32 stackcount, int32 remaincharges)
+{
+	SpellEntry const* spellproto = sSpellStore.LookupEntry(spellid);
+	if (!spellproto)
+	{
+		sLog->outError("Unknown spell (spellid %u), ignore.", spellid);
+		return;
+	}
+
+	ObjectGuid object;
+
+	if (spellproto->StackAmount < stackcount)
+		stackcount = spellproto->StackAmount;
+
+	AuraApplicationMapBounds range = m_appliedAuras.equal_range(ADVENTURE_AURA);
+
+	for (AuraApplicationMap::const_iterator itr = range.first; itr != range.second; ++itr)
+	{
+		if (itr->second->GetBase()->GetStackAmount() == stackcount)
+			return;
+		else
+		{
+			itr->second->GetBase()->SetStackAmount(stackcount);
+			return;
+		}
+	}
+
+	uint32 remaintime;
+	uint32 maxduration;
+
+	SpellDurationEntry const* du = sSpellDurationStore.LookupEntry(spellproto->DurationIndex);
+
+	if (du)
+	{
+		remaintime = (du->Duration[0] == -1) ? -1 : abs(du->Duration[0]);
+		maxduration = (du->Duration[2] == -1) ? -1 : abs(du->Duration[2]);
+	}
+	else
+	{
+		remaintime = -1;
+		maxduration = -1;
+	}
+
+
+	if (remaincharges)
+		remaincharges = spellproto->procCharges;
+
+	SpellAuraHolder* holder = CreateSpellAuraHolder(spellproto, this, this);
+	holder->SetLoadedState(GetObjectGuid(), object, stackcount, remaincharges, maxduration, remaintime);
+
+		for (int32 i = 0; i < MAX_EFFECT_INDEX; ++i)
+		{
+			uint8 eff = spellproto->Effect[i];
+
+			if (eff >= TOTAL_SPELL_EFFECTS)
+				continue;
+
+			if (IsAreaAuraEffect(eff) ||
+				eff == SPELL_EFFECT_APPLY_AURA ||
+				eff == SPELL_EFFECT_PERSISTENT_AREA_AURA)
+			{
+				Aura* aura = CreateAura(spellproto, SpellEffectIndex(i), nullptr, holder, this);
+				holder->AddAura(aura, SpellEffectIndex(i));
+			}
+		}
+		AddSpellAuraHolder(holder);
+
+	}
+}
+*/

@@ -51,10 +51,10 @@ inline bool _ModifyUInt32(bool apply, uint32& baseValue, int32& amount)
 ########                         ########
 #######################################*/
 
-void Unit::UpdateAllResistances()
-{ 
+void Unit::UpdateAllResistances(float bonus)
+{ 	
     for (uint8 i = SPELL_SCHOOL_NORMAL; i < MAX_SPELL_SCHOOL; ++i)
-        UpdateResistances(i);
+        UpdateResistances(i, bonus);
 }
 
 void Unit::UpdateDamagePhysical(WeaponAttackType attType)
@@ -87,6 +87,8 @@ void Unit::UpdateDamagePhysical(WeaponAttackType attType)
 ########   PLAYERS STAT SYSTEM   ########
 ########                         ########
 #######################################*/
+
+//Custom
 
 bool Player::UpdateStats(Stats stat)
 { 
@@ -203,7 +205,12 @@ bool Player::UpdateAllStats()
     UpdateExpertise(BASE_ATTACK);
     UpdateExpertise(OFF_ATTACK);
     RecalculateRating(CR_ARMOR_PENETRATION);
-    UpdateAllResistances();
+// custom
+	float bonus = 0.f;
+	if (sWorld->getBoolConfig(CONFIG_CUSTOM_RESISTANCES))
+		bonus = CalculateBonusResistance();
+
+    UpdateAllResistances(bonus);
 
     return true;
 }
@@ -213,8 +220,35 @@ void Player::ApplySpellPenetrationBonus(int32 amount, bool apply)
     ApplyModInt32Value(PLAYER_FIELD_MOD_TARGET_RESISTANCE, -amount, apply);
     m_spellPenetrationItemMod += apply ? amount : -amount;
 }
+//custom here
+float Player::CalculateBonusResistance()
+{
+	float bonusResistance = 0.0f;
 
-void Player::UpdateResistances(uint32 school)
+	for (uint8 school = SPELL_SCHOOL_HOLY; school < MAX_SPELL_SCHOOL; ++school)
+	{
+		float value = 0.0f;
+		UnitMods unitMod = UnitMods(UNIT_MOD_RESISTANCE_START + school);
+
+		value = GetModifierValue(unitMod, BASE_VALUE);
+		value *= GetModifierValue(unitMod, BASE_PCT);
+		value += GetModifierValue(unitMod, TOTAL_VALUE);
+
+		AuraEffectList const& mResbyIntellect = GetAuraEffectsByType(SPELL_AURA_MOD_RESISTANCE_OF_STAT_PERCENT);
+		for (AuraEffectList::const_iterator i = mResbyIntellect.begin(); i != mResbyIntellect.end(); ++i)
+		{
+			if ((*i)->GetMiscValue() & (1 << (school - 1)))
+				value += int32(GetStat(Stats((*i)->GetMiscValueB())) * (*i)->GetAmount() / 100.0f);
+		}
+
+		value *= GetModifierValue(unitMod, TOTAL_PCT);
+		bonusResistance += (value / 4);
+	}
+
+	return bonusResistance;
+}
+
+void Player::UpdateResistances(uint32 school, float bonus)
 { 
     if (school > SPELL_SCHOOL_NORMAL)
     {
@@ -235,13 +269,14 @@ void Player::UpdateResistances(uint32 school)
 
         value *= GetModifierValue(unitMod, TOTAL_PCT);
 
+		value += bonus;
         SetResistance(SpellSchools(school), int32(value));
     }
     else
-        UpdateArmor();
+        UpdateArmor(bonus);
 }
 
-void Player::UpdateArmor()
+void Player::UpdateArmor(float bonus)
 { 
     UnitMods unitMod = UNIT_MOD_ARMOR;
 
@@ -259,6 +294,9 @@ void Player::UpdateArmor()
     }
 
     value *= GetModifierValue(unitMod, TOTAL_PCT);
+
+	//custom
+	value += bonus*bonus;
 
     SetArmor(int32(value));
 
@@ -816,23 +854,189 @@ void Player::UpdateArmorPenetration(int32 amount)
     // Store Rating Value
     SetUInt32Value(PLAYER_FIELD_COMBAT_RATING_1 + CR_ARMOR_PENETRATION, amount);
 }
-
+//custom
 void Player::UpdateMeleeHitChances()
 { 
-    m_modMeleeHitChance = (float)GetTotalAuraModifier(SPELL_AURA_MOD_HIT_CHANCE);
-    m_modMeleeHitChance += GetRatingBonusValue(CR_HIT_MELEE);
+	/*
+	if (sWorld->getBoolConfig(CONFIG_CUSTOM_RULES))
+	{ 
+		float health = GetHealthPct();
+		float penalty;
+
+		if (health >= 90.f)
+		{ 
+			penalty = 1.05f;
+			//Remove Wounded Auras
+			if (HasAura(95001))
+				RemoveAura(95001);
+			if (HasAura(95002))
+				RemoveAura(95002);
+			//Add Empowered Aura
+			if (!HasAura(95000))
+				CastSpell(this, 95000, true);
+		}			
+		else if (health < 20.f)
+		{
+			penalty = 0.8f;
+			//Remove Empowered - Wounded Auras
+			if (HasAura(95000))
+				RemoveAura(95000);
+			if (HasAura(95001))
+				RemoveAura(95001);
+			//Add Wounded Aura
+			if (!HasAura(95002))
+				CastSpell(this, 95002, true);
+		}		
+		else
+		{
+			penalty = 1.f - (health / 5);
+
+			//Remove Empowered - Grevious Wounded Auras
+			if (HasAura(95000))
+				RemoveAura(95000);
+			if (HasAura(95002))
+				RemoveAura(95002);
+			//Add Wounded Aura
+			if (!HasAura(95001))
+				CastSpell(this, 95001, true);
+		}			
+
+		m_modMeleeHitChance = penalty*(float)GetTotalAuraModifier(SPELL_AURA_MOD_HIT_CHANCE);
+		m_modMeleeHitChance += penalty*GetRatingBonusValue(CR_HIT_MELEE);
+	}
+	else
+	{
+	*/
+		m_modMeleeHitChance = (float)GetTotalAuraModifier(SPELL_AURA_MOD_HIT_CHANCE);
+		m_modMeleeHitChance += GetRatingBonusValue(CR_HIT_MELEE);
+		//Custom}
+    
 }
 
 void Player::UpdateRangedHitChances()
-{ 
-    m_modRangedHitChance = (float)GetTotalAuraModifier(SPELL_AURA_MOD_HIT_CHANCE);
-    m_modRangedHitChance += GetRatingBonusValue(CR_HIT_RANGED);
+{
+	/*
+	if (sWorld->getBoolConfig(CONFIG_CUSTOM_RULES))
+	{
+		float health = GetHealthPct();
+		float penalty;
+
+		if (health >= 90.f)
+		{
+			penalty = 1.05f;
+			//Remove Wounded Auras
+			if (HasAura(95001))
+				RemoveAura(95001);
+			if (HasAura(95002))
+				RemoveAura(95002);
+			//Add Empowered Aura
+			if (!HasAura(95000))
+				CastSpell(this, 95000, true);
+		}
+		else if (health < 20.f)
+		{
+			penalty = 0.8f;
+			//Remove Empowered - Grevious Wounded Auras
+			if (HasAura(95000))
+				RemoveAura(95000);
+			if (HasAura(95002))
+				RemoveAura(95002);
+			//Add Wounded Aura
+			if (!HasAura(95001))
+				CastSpell(this, 95001, true);
+		}
+		else
+		{
+			penalty = 1.f - (health / 5);
+
+			//Remove Woundeded - Grevious Wounded Auras
+			if (HasAura(95000))
+				RemoveAura(95000);
+			if (HasAura(95001))
+				RemoveAura(95001);
+			//Add Grevious Wounded Aura
+			if (!HasAura(95002))
+				CastSpell(this, 95002, true);
+		}
+
+		m_modRangedHitChance = penalty*(float)GetTotalAuraModifier(SPELL_AURA_MOD_HIT_CHANCE);
+		m_modRangedHitChance += penalty*GetRatingBonusValue(CR_HIT_RANGED);
+	}
+	else
+	{
+	*/
+		m_modRangedHitChance = (float)GetTotalAuraModifier(SPELL_AURA_MOD_HIT_CHANCE);
+		m_modRangedHitChance += GetRatingBonusValue(CR_HIT_RANGED);
+		//custom}
 }
 
 void Player::UpdateSpellHitChances()
 { 
-    m_modSpellHitChance = (float)GetTotalAuraModifier(SPELL_AURA_MOD_SPELL_HIT_CHANCE);
-    m_modSpellHitChance += GetRatingBonusValue(CR_HIT_SPELL);
+	/*
+	if (sWorld->getBoolConfig(CONFIG_CUSTOM_RULES))
+	{
+		float health = GetHealthPct();
+		float penalty;
+
+		if (health >= 90.f)
+		{
+			penalty = 1.05f;
+			//Remove Wounded Auras
+			if (HasAura(95001))
+				RemoveAura(95001);
+			if (HasAura(95002))
+				RemoveAura(95002);
+			//Add Empowered Aura
+			if (!HasAura(95000))
+				CastSpell(this, 95000, true);
+		}
+		else if (getClass() == CLASS_WARLOCK && health >= 50.f)
+		{
+			penalty = .95f;
+			//Remove Empowered - Grevious Wounded Auras
+			if (HasAura(95000))
+				RemoveAura(95000);
+			if (HasAura(95002))
+				RemoveAura(95002);
+			//Add Wounded Aura
+			if (!HasAura(95001))
+				CastSpell(this, 95001, true);
+		}
+		else if (health < 20.f)
+		{
+			penalty = 0.8f;
+			//Remove Empowered - Grevious Wounded Auras
+			if (HasAura(95000))
+				RemoveAura(95000);
+			if (HasAura(95002))
+				RemoveAura(95002);
+			//Add Wounded Aura
+			if (!HasAura(95001))
+				CastSpell(this, 95001, true);
+		}
+		else
+		{
+			penalty = 1.f - (health / 5);
+
+			//Remove Woundeded - Grevious Wounded Auras
+			if (HasAura(95000))
+				RemoveAura(95000);
+			if (HasAura(95001))
+				RemoveAura(95001);
+			//Add Grevious Wounded Aura
+			if (!HasAura(95002))
+				CastSpell(this, 95002, true);
+		}
+		
+		m_modSpellHitChance = penalty*(float)GetTotalAuraModifier(SPELL_AURA_MOD_SPELL_HIT_CHANCE);
+		m_modSpellHitChance += penalty*GetRatingBonusValue(CR_HIT_SPELL);
+	}
+	else
+	{
+	*/
+		m_modSpellHitChance = (float)GetTotalAuraModifier(SPELL_AURA_MOD_SPELL_HIT_CHANCE);
+		m_modSpellHitChance += GetRatingBonusValue(CR_HIT_SPELL);
+	//}
 }
 
 void Player::UpdateAllSpellCritChances()
@@ -992,7 +1196,7 @@ bool Creature::UpdateAllStats()
     return true;
 }
 
-void Creature::UpdateResistances(uint32 school)
+void Creature::UpdateResistances(uint32 school, float bonus)
 { 
     if (school > SPELL_SCHOOL_NORMAL)
     {
@@ -1003,7 +1207,7 @@ void Creature::UpdateResistances(uint32 school)
         UpdateArmor();
 }
 
-void Creature::UpdateArmor()
+void Creature::UpdateArmor(float bonus)
 { 
     float value = GetTotalAuraModValue(UNIT_MOD_ARMOR);
     SetArmor(int32(value));
@@ -1149,7 +1353,7 @@ bool Guardian::UpdateAllStats()
     return true;
 }
 
-void Guardian::UpdateArmor()
+void Guardian::UpdateArmor(float bonus)
 { 
     float value = GetModifierValue(UNIT_MOD_ARMOR, BASE_VALUE);
     value *= GetModifierValue(UNIT_MOD_ARMOR, BASE_PCT);

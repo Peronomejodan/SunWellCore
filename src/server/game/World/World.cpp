@@ -1016,6 +1016,24 @@ void World::LoadConfigSettings(bool reload)
     m_bool_configs[CONFIG_SILENTLY_GM_JOIN_TO_CHANNEL] = sConfigMgr->GetBoolDefault("Channel.SilentlyGMJoin", false);
 
     m_bool_configs[CONFIG_TALENTS_INSPECTING]           = sConfigMgr->GetBoolDefault("TalentsInspecting", true);
+	m_bool_configs[CONFIG_CUSTOM_RULES] = sConfigMgr->GetBoolDefault("CustomRules", false);
+	m_bool_configs[CONFIG_CUSTOM_RESISTANCES] = sConfigMgr->GetBoolDefault("Custom.CustomResistances", false);
+	m_bool_configs[CONFIG_CUSTOM_ADVENTURE_MODE] = sConfigMgr->GetBoolDefault("Custom.AdventureMode", false);
+
+	m_int_configs[CONFIG_CUSTOM_ADVENTURE_MAX_LEVEL] = sConfigMgr->GetIntDefault("Custom.AdventureMaxLevel", 0);
+	m_int_configs[CONFIG_CUSTOM_ADVENTURE_KILLXP] = sConfigMgr->GetIntDefault("Custom.AdventureKillXP", 0);
+	m_int_configs[CONFIG_CUSTOM_ADVENTURE_PVPXP] = sConfigMgr->GetIntDefault("Custom.AdventurePVPXP", 0);
+	m_int_configs[CONFIG_CUSTOM_ADVENTURE_DEATHXP] = sConfigMgr->GetIntDefault("Custom.AdventureDeathXP", 0);
+	m_int_configs[CONFIG_CUSTOM_ADVENTURE_ITEMXP] = sConfigMgr->GetIntDefault("Custom.AdventureItemXP", 0);
+	m_int_configs[CONFIG_CUSTOM_ADVENTURE_LEVELXP] = sConfigMgr->GetIntDefault("Custom.AdventureLevelXP", 0);
+	m_int_configs[CONFIG_CUSTOM_ADVENTURE_BOSSONLYXP] = sConfigMgr->GetIntDefault("Custom.AdventureBossOnlyXP", 5);
+
+	m_bool_configs[CONFIG_CUSTOM_RANDOMIZE_ITEM] = sConfigMgr->GetBoolDefault("Custom.RandomizeItem", false);
+	m_int_configs[CONFIG_CUSTOM_RANDOMIZE_ITEM_MIN_LEVEL] = sConfigMgr->GetIntDefault("Custom.RandomizeItemMinLevel", 15);
+	m_int_configs[CONFIG_CUSTOM_RANDOMIZE_ITEM_MIN_QUALITY] = sConfigMgr->GetIntDefault("Custom.RandomizeItemMinQuality", 2);
+	m_int_configs[CONFIG_CUSTOM_RANDOMIZE_ITEM_DIFF] = sConfigMgr->GetIntDefault("Custom.RandomizeItemDiff", 5);
+	m_int_configs[CONFIG_CUSTOM_RANDOMIZE_ITEM_CHANCE] = sConfigMgr->GetIntDefault("Custom.RandomizeItemChance", 10);
+	
     m_bool_configs[CONFIG_CHAT_FAKE_MESSAGE_PREVENTING] = sConfigMgr->GetBoolDefault("ChatFakeMessagePreventing", false);
     m_int_configs[CONFIG_CHAT_STRICT_LINK_CHECKING_SEVERITY] = sConfigMgr->GetIntDefault("ChatStrictLinkChecking.Severity", 0);
     m_int_configs[CONFIG_CHAT_STRICT_LINK_CHECKING_KICK] = sConfigMgr->GetIntDefault("ChatStrictLinkChecking.Kick", 0);

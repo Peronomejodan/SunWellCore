@@ -72,33 +72,36 @@ enum Races
     RACE_TAUREN         = 6,
     RACE_GNOME          = 7,
     RACE_TROLL          = 8,
-    //RACE_GOBLIN         = 9,
+    RACE_GOBLIN         = 9,
     RACE_BLOODELF       = 10,
-    RACE_DRAENEI        = 11
-    //RACE_FEL_ORC        = 12,
-    //RACE_NAGA           = 13,
-    //RACE_BROKEN         = 14,
+    RACE_DRAENEI        = 11,
+    RACE_SAUROK         = 12,
+    RACE_NAGA           = 13,
+    RACE_WORGEN         = 14,
     //RACE_SKELETON       = 15,
-    //RACE_VRYKUL         = 16,
-    //RACE_TUSKARR        = 17,
-    //RACE_FOREST_TROLL   = 18,
-    //RACE_TAUNKA         = 19,
+    RACE_PANDAREN         = 16,
+    RACE_TUSKARR        = 17,
+    RACE_FOREST_TROLL   = 18,
+    RACE_TAUNKA         = 19,
     //RACE_NORTHREND_SKELETON = 20,
     //RACE_ICE_TROLL      = 21
 };
 
 // max+1 for player race
-#define MAX_RACES         12
+#define MAX_RACES         20
 
 #define RACEMASK_ALL_PLAYABLE \
     ((1<<(RACE_HUMAN-1))   |(1<<(RACE_ORC-1))          |(1<<(RACE_DWARF-1))   | \
     (1<<(RACE_NIGHTELF-1))|(1<<(RACE_UNDEAD_PLAYER-1))|(1<<(RACE_TAUREN-1))  | \
     (1<<(RACE_GNOME-1))   |(1<<(RACE_TROLL-1))        |(1<<(RACE_BLOODELF-1))| \
-    (1<<(RACE_DRAENEI-1)))
+    (1<<(RACE_DRAENEI-1)) |(1<<(RACE_SAUROK-1))        |(1<<(RACE_NAGA-1))| \
+    (1<<(RACE_WORGEN-1)) |(1<<(RACE_PANDAREN-1))        |(1<<(RACE_TUSKARR-1))| \
+    (1<<(RACE_FOREST_TROLL-1)) |(1<<(RACE_TAUNKA-1)))
 
 #define RACEMASK_ALLIANCE \
     ((1<<(RACE_HUMAN-1)) | (1<<(RACE_DWARF-1)) | (1<<(RACE_NIGHTELF-1)) | \
-    (1<<(RACE_GNOME-1)) | (1<<(RACE_DRAENEI-1)))
+    (1<<(RACE_GNOME-1)) | (1<<(RACE_DRAENEI-1)) | (1<<(RACE_NAGA-1)) |  \
+    (1<<(RACE_PANDAREN-1)) | (1<<(RACE_WORGEN-1)) | (1<<(RACE_TUSKARR-1)))
 
 #define RACEMASK_HORDE RACEMASK_ALL_PLAYABLE & ~RACEMASK_ALLIANCE
 
@@ -787,7 +790,7 @@ enum SpellEffects
     SPELL_EFFECT_APPLY_AREA_AURA_PET                = 119,
     SPELL_EFFECT_TELEPORT_GRAVEYARD                 = 120,
     SPELL_EFFECT_NORMALIZED_WEAPON_DMG              = 121,
-    SPELL_EFFECT_122                                = 122,
+    SPELL_EFFECT_122                                = 122,   //Custom 
     SPELL_EFFECT_SEND_TAXI                          = 123,
     SPELL_EFFECT_PULL_TOWARDS                       = 124,
     SPELL_EFFECT_MODIFY_THREAT_PERCENT              = 125,

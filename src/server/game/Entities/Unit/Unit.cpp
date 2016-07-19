@@ -2933,7 +2933,13 @@ float Unit::GetUnitParryChance() const
 
 float Unit::GetUnitMissChance(WeaponAttackType attType) const
 { 
-    float miss_chance = 5.00f;
+	// custom
+	float miss_chance;
+	
+	if (sWorld->getBoolConfig(CONFIG_CUSTOM_RULES))
+		miss_chance = 8.00f;
+	else
+		miss_chance  = 5.00f;
 
     if (Player const* player = ToPlayer())
         miss_chance += player->GetMissPercentageFromDefence();

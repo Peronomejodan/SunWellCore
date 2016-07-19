@@ -90,7 +90,7 @@ class Guardian : public Minion
 
         bool UpdateStats(Stats stat);
         bool UpdateAllStats();
-        void UpdateArmor();
+		void UpdateArmor(float bonus = 0.0f);
         void UpdateMaxHealth();
         void UpdateMaxPower(Powers power);
         void UpdateAttackPowerAndDamage(bool ranged = false);

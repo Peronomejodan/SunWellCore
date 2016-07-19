@@ -818,6 +818,7 @@ enum PlayerLoginQueryIndex
     PLAYER_LOGIN_QUERY_LOAD_MONTHLY_QUEST_STATUS    = 32,
 	PLAYER_LOGIN_QUERY_LOAD_MAIL                    = 33,
 	PLAYER_LOGIN_QUERY_LOAD_BREW_OF_THE_MONTH       = 34,
+	PLAYER_LOGIN_QUERY_CUSTOM_ADVENTURE_MODE        = 35,  //custom
     MAX_PLAYER_LOGIN_QUERY,
 };
 
@@ -851,6 +852,8 @@ enum PlayerCharmedAISpells
 // Player summoning auto-decline time (in secs)
 #define MAX_PLAYER_SUMMON_DELAY                   (2*MINUTE)
 #define MAX_MONEY_AMOUNT                       (0x7FFFFFFF-1)
+
+#define ADVENTURE_AURA           95010
 
 struct AccessRequirement
 {
@@ -1917,8 +1920,11 @@ class Player : public Unit, public GridObject<Player>
         bool UpdateStats(Stats stat);
         bool UpdateAllStats();
         void ApplySpellPenetrationBonus(int32 amount, bool apply);
-        void UpdateResistances(uint32 school);
-        void UpdateArmor();
+		void UpdateResistances(uint32 school, float bonus = 0.0f);
+		//custom
+		float CalculateBonusResistance();
+
+		void UpdateArmor(float bonus = 0.0f);
         void UpdateMaxHealth();
         void UpdateMaxPower(Powers power);
         void ApplyFeralAPBonus(int32 amount, bool apply);
@@ -2678,6 +2684,8 @@ class Player : public Unit, public GridObject<Player>
         void _LoadInstanceTimeRestrictions(PreparedQueryResult result);
         void _LoadBrewOfTheMonth(PreparedQueryResult result);
 
+		//Custom
+		void _LoadAdventureLevel(QueryResult* result);
         /*********************************************************/
         /***                   SAVE SYSTEM                     ***/
         /*********************************************************/
@@ -2830,6 +2838,25 @@ class Player : public Unit, public GridObject<Player>
         uint32 _innTriggerId;
         float _restBonus;
         ////////////////////Rest System/////////////////////
+
+		//////////////////// Adventure Mode/////////////////////
+
+		uint32 adventure_level;
+		uint32 adventure_xp;
+
+		public:
+			void AddAdventureXP(int32 xp);
+			bool SubstractAdventureXP(int32 xp);
+			uint32 GetAdventureLevel();
+
+		protected:
+			uint32 _GetAdventureLevel();
+			void ResetAdventureLevel();
+			void StoreAdventureLevel();
+			void SetAdventureLevel(uint32 level);
+//			void _CreateCustomAura(uint32 spellid, uint32 stackcount = 0, int32 remaincharges = 0);
+		//////////////////// Adventure Mode/////////////////////
+
         uint32 m_resetTalentsCost;
         time_t m_resetTalentsTime;
         uint32 m_usedTalentCount;
