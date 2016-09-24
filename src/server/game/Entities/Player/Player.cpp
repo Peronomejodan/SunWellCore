@@ -14584,7 +14584,7 @@ void Player::PrepareGossipMenu(WorldObject* source, uint32 menuId /*= 0*/, bool 
                     break;
                 case GOSSIP_OPTION_VENDOR:
                 {
-                    VendorItemData const* vendorItems = itr->second.ActionMenuId ? nullptr : creature->GetVendorItems();
+                    VendorItemData const* vendorItems = itr->second.ActionMenuId ? NULL: creature->GetVendorItems();
                     if (!itr->second.ActionMenuId && (!vendorItems || vendorItems->Empty()))
                     {
                         sLog->outErrorDb("Creature %u (Entry: %u) have UNIT_NPC_FLAG_VENDOR but have empty trading item list.", creature->GetGUIDLow(), creature->GetEntry());
