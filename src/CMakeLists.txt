@@ -13,7 +13,7 @@
 # weren't doing some -O3 psychooptimizations etc.
 
 if(CMAKE_COMPILER_IS_GNUCXX AND NOT MINGW)
-  add_definitions(-fno-delete-null-pointer-checks)
+  add_definitions(-fno-delete-null-pointer-checks -D_GLIBCXX_USE_CXX11_ABI=0)
 endif()
 
 add_subdirectory(genrev)
