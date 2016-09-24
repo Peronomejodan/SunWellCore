@@ -553,4 +553,9 @@ void CharacterDatabaseConnection::DoPrepareStatements()
     PrepareStatement(CHAR_DEL_CHAR_PET_BY_ID, "DELETE FROM character_pet WHERE id = ?", CONNECTION_ASYNC);
     PrepareStatement(CHAR_DEL_CHAR_PET_BY_SLOT, "DELETE FROM character_pet WHERE owner = ? AND (slot = ? OR slot > ?)", CONNECTION_ASYNC);
 	PrepareStatement(CHAR_REP_CHAR_PET, "REPLACE INTO character_pet (id, entry, owner, modelid, CreatedBySpell, PetType, level, exp, Reactstate, name, renamed, slot, curhealth, curmana, curhappiness, savetime, abdata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", CONNECTION_ASYNC);
+
+	//Custom
+	PrepareStatement(CHAR_DELETE_ADVENTURE_LEVEL, "DELETE FROM character_custom_data WHERE guid = ? ", CONNECTION_ASYNC);
+	PrepareStatement(CHAR_INSERT_ADVENTURE_LEVEL, "INSERT INTO character_custom_data VALUES (?, ?, ?)", CONNECTION_ASYNC);	
+	PrepareStatement(CHAR_QUERY_ADVENTURE_LEVEL, "SELECT adventurelevel,adventurexp FROM character_custom_data WHERE guid = ?", CONNECTION_SYNCH);
 }

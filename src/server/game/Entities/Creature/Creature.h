@@ -537,8 +537,8 @@ class Creature : public Unit, public GridObject<Creature>, public MovableMapObje
         bool UpdateEntry(uint32 entry, const CreatureData* data=NULL, bool changelevel=true );
         bool UpdateStats(Stats stat);
         bool UpdateAllStats();
-        void UpdateResistances(uint32 school);
-        void UpdateArmor();
+		void UpdateResistances(uint32 school, float bonus = 0.0f);
+		void UpdateArmor(float bonus = 0.0f);
         void UpdateMaxHealth();
         void UpdateMaxPower(Powers power);
         void UpdateAttackPowerAndDamage(bool ranged = false);

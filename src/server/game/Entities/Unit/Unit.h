@@ -899,6 +899,7 @@ public:
 
     Unit* GetAttacker() const { return m_attacker; };
     Unit* GetVictim() const { return m_victim; };
+	
     SpellInfo const* GetSpellInfo() const { return m_spellInfo; };
     SpellSchoolMask GetSchoolMask() const { return m_schoolMask; };
     DamageEffectType GetDamageType() const { return m_damageType; };
@@ -1435,6 +1436,13 @@ class Unit : public WorldObject
         AttackerSet const& getAttackers() const { return m_attackers; }
         bool isAttackingPlayer() const;
         Unit* GetVictim() const { return m_attacking; }
+
+		// Use this only when 100% sure there is a victim
+		Unit* EnsureVictim() const
+		{
+			ASSERT(m_attacking);
+			return  m_attacking;
+		}
 
         void CombatStop(bool includingCast = false);
         void CombatStopWithPets(bool includingCast = false);
@@ -2104,9 +2112,9 @@ class Unit : public WorldObject
         void SetCanModifyStats(bool modifyStats) { m_canModifyStats = modifyStats; }
         virtual bool UpdateStats(Stats stat) = 0;
         virtual bool UpdateAllStats() = 0;
-        virtual void UpdateResistances(uint32 school) = 0;
-        virtual void UpdateAllResistances();
-        virtual void UpdateArmor() = 0;
+        virtual void UpdateResistances(uint32 school, float bonus = 0.0f) = 0;
+		virtual void UpdateAllResistances(float bonus = 0.0f);
+		virtual void UpdateArmor(float bonus = 0.0f) = 0;
         virtual void UpdateMaxHealth() = 0;
         virtual void UpdateMaxPower(Powers power) = 0;
         virtual void UpdateAttackPowerAndDamage(bool ranged = false) = 0;
