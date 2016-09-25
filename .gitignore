@@ -5,6 +5,8 @@
 conf/*
 !conf/*.dist
 modules/*
+build/*
+cmake/*
 
 #
 # Allow modules to control git ignoring
