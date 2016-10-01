@@ -1,3 +1,14 @@
+-- DB update 2016_09_24_05 -> 2016_09_24_06
+DROP PROCEDURE IF EXISTS `updateDb`;
+DELIMITER //
+CREATE PROCEDURE updateDb ()
+proc:BEGIN DECLARE OK VARCHAR(100) DEFAULT 'FALSE';
+START TRANSACTION;
+ALTER TABLE version_db_world CHANGE COLUMN 2016_09_24_05 2016_09_24_06 bit;
+SELECT sql_rev INTO OK FROM version_db_world WHERE sql_rev = '1473583129228647885'; IF OK <> 'FALSE' THEN LEAVE proc; END IF;
+--
+-- START UPDATING QUERIES
+--
 INSERT INTO version_db_world(`sql_rev`) VALUES ('1473583129228647885');
 
 -- areatrigger_teleport
@@ -176,3 +187,12 @@ CHANGE `target_position_x` `PositionX` FLOAT NOT NULL DEFAULT '0',
 CHANGE `target_position_y` `PositionY` FLOAT NOT NULL DEFAULT '0',
 CHANGE `target_position_z` `PositionZ` FLOAT NOT NULL DEFAULT '0',
 CHANGE `target_orientation` `Orientation` FLOAT NOT NULL DEFAULT '0';
+--
+-- END UPDATING QUERIES
+--
+COMMIT;
+END;
+//
+DELIMITER ;
+CALL updateDb();
+DROP PROCEDURE IF EXISTS `updateDb`;

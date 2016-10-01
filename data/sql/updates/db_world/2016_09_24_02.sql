@@ -1,10 +1,18 @@
+-- DB update 2016_09_24_01 -> 2016_09_24_02
+DROP PROCEDURE IF EXISTS `updateDb`;
+DELIMITER //
+CREATE PROCEDURE updateDb ()
+proc:BEGIN DECLARE OK VARCHAR(100) DEFAULT 'FALSE';
+START TRANSACTION;
+ALTER TABLE version_db_world CHANGE COLUMN 2016_09_24_01 2016_09_24_02 bit;
+SELECT sql_rev INTO OK FROM version_db_world WHERE sql_rev = '1473111186171042200'; IF OK <> 'FALSE' THEN LEAVE proc; END IF;
+--
+-- START UPDATING QUERIES
+--
 INSERT INTO version_db_world(`sql_rev`) VALUES ('1473111186171042200');
 
 -- Culling of Stratholme Fix
 -- Fix Arthus start senario & Resting point fix
-
-
-ALTER TABLE world_db_version CHANGE COLUMN 2016_08_14_00 2016_08_14_01 bit;
 
 DELETE FROM `creature_template` WHERE `entry` IN (11082,14646,28167,28169,28340,28341,28409,28439,28509,28656,29865,29866,29868,30996,31006,31126,31127);
 INSERT INTO `creature_template` VALUES
@@ -85,3 +93,12 @@ INSERT INTO `script_waypoint` VALUES
 (26499, 54, 2327.39, 1412.47, 127.692, 0, 'culling Market WP4'),
 (26499, 55, 2303.02, 1480.07, 128.139, 0, 'culling Crusader WP1'),
 (26499, 56, 2296.67, 1502.36, 128.362, 0, 'culling Crusader WP2');
+--
+-- END UPDATING QUERIES
+--
+COMMIT;
+END;
+//
+DELIMITER ;
+CALL updateDb();
+DROP PROCEDURE IF EXISTS `updateDb`;

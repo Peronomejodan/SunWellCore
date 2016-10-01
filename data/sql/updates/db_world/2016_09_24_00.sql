@@ -1,3 +1,14 @@
+-- DB update 2016_08_30_00 -> 2016_09_24_00
+DROP PROCEDURE IF EXISTS `updateDb`;
+DELIMITER //
+CREATE PROCEDURE updateDb ()
+proc:BEGIN DECLARE OK VARCHAR(100) DEFAULT 'FALSE';
+START TRANSACTION;
+ALTER TABLE version_db_world CHANGE COLUMN 2016_08_30_00 2016_09_24_00 bit;
+SELECT sql_rev INTO OK FROM version_db_world WHERE sql_rev = '1473110802988536500'; IF OK <> 'FALSE' THEN LEAVE proc; END IF;
+--
+-- START UPDATING QUERIES
+--
 INSERT INTO version_db_world(`sql_rev`) VALUES ('1473110802988536500');
 
 
@@ -12,3 +23,12 @@ VALUES (36794, 0, 0, 0, 0, 0, 30277, 0, 0, 0, 'Scourgelord Tyrannus', '', '', 0,
 
 INSERT INTO `creature_template_addon` (`entry`, `path_id`, `mount`, `bytes1`, `bytes2`, `emote`, `auras`) VALUES
 (36794, 0, 27982, 50331648, 1, 0, '');
+--
+-- END UPDATING QUERIES
+--
+COMMIT;
+END;
+//
+DELIMITER ;
+CALL updateDb();
+DROP PROCEDURE IF EXISTS `updateDb`;

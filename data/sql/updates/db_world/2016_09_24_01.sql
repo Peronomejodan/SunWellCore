@@ -1,3 +1,14 @@
+-- DB update 2016_09_24_00 -> 2016_09_24_01
+DROP PROCEDURE IF EXISTS `updateDb`;
+DELIMITER //
+CREATE PROCEDURE updateDb ()
+proc:BEGIN DECLARE OK VARCHAR(100) DEFAULT 'FALSE';
+START TRANSACTION;
+ALTER TABLE version_db_world CHANGE COLUMN 2016_09_24_00 2016_09_24_01 bit;
+SELECT sql_rev INTO OK FROM version_db_world WHERE sql_rev = '1473111010225487800'; IF OK <> 'FALSE' THEN LEAVE proc; END IF;
+--
+-- START UPDATING QUERIES
+--
 INSERT INTO version_db_world(`sql_rev`) VALUES ('1473111010225487800');
 
 
@@ -128,3 +139,12 @@ UPDATE `creature` SET `spawndist`=0,`position_x`=9817.200195,`position_y`=-7268.
 UPDATE `creature` SET `spawndist`=0,`position_x`=9824.250000,`position_y`=-7272.975586,`position_z`=26.244701 WHERE `guid`=64970;
 UPDATE `creature` SET `spawndist`=0,`position_x`=9824.455078,`position_y`=-7270.105957,`position_z`=26.228758 WHERE `guid`=64972;
 UPDATE `creature` SET `spawndist`=0,`position_x`=9822.427734,`position_y`=-7267.509277,`position_z`=26.203625 WHERE `guid`=64971;
+--
+-- END UPDATING QUERIES
+--
+COMMIT;
+END;
+//
+DELIMITER ;
+CALL updateDb();
+DROP PROCEDURE IF EXISTS `updateDb`;
