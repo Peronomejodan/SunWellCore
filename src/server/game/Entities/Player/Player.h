@@ -31,6 +31,7 @@
 #include "Unit.h"
 #include "Battleground.h"
 #include "WorldSession.h"
+#include "Transmogrification.h"
 
 #include <string>
 #include <vector>
@@ -128,6 +129,18 @@ struct SpellModifier
     uint32 spellId;
     Aura* const ownerAura;
 };
+
+typedef std::unordered_map<uint64, uint32> TransmogMapType;
+
+#ifdef PRESETS
+typedef std::map<uint8, uint32> PresetslotMapType;
+struct PresetData
+{
+	std::string name;
+	PresetslotMapType slotMap; // slotMap[slotId] = entry
+	};
+typedef std::map<uint8, PresetData> PresetMapType;
+#endif
 
 typedef UNORDERED_MAP<uint32, PlayerTalent*> PlayerTalentMap;
 typedef UNORDERED_MAP<uint32, PlayerSpell*> PlayerSpellMap;
@@ -854,6 +867,7 @@ enum PlayerCharmedAISpells
 #define MAX_MONEY_AMOUNT                       (0x7FFFFFFF-1)
 
 #define ADVENTURE_AURA           95010
+#define GROUP_ADVENTURE_AURA     95005
 
 struct AccessRequirement
 {
@@ -2600,6 +2614,11 @@ class Player : public Unit, public GridObject<Player>
 		uint32 GetNextSave() const { return m_nextSave; }
 		SpellModList const& GetSpellModList(uint32 type) const { return m_spellMods[type]; }
 
+		TransmogMapType transmogMap; // transmogMap[iGUID] = entry
+		#ifdef PRESETS
+			 PresetMapType presetMap; // presetMap[presetId] = presetData
+		#endif
+
     protected:
         // Gamemaster whisper whitelist
         WhisperListContainer WhisperList;
@@ -2685,7 +2704,7 @@ class Player : public Unit, public GridObject<Player>
         void _LoadBrewOfTheMonth(PreparedQueryResult result);
 
 		//Custom
-		void _LoadAdventureLevel(QueryResult* result);
+		void _LoadAdventureLevel(PreparedQueryResult result);
         /*********************************************************/
         /***                   SAVE SYSTEM                     ***/
         /*********************************************************/
@@ -2843,14 +2862,15 @@ class Player : public Unit, public GridObject<Player>
 
 		uint32 adventure_level;
 		uint32 adventure_xp;
+		uint32 adventure_group_level;
 
 		public:
 			void AddAdventureXP(int32 xp);
 			bool SubstractAdventureXP(int32 xp);
+			uint32 GetAdventureLevelGroup();
 			uint32 GetAdventureLevel();
 
-		protected:
-			uint32 _GetAdventureLevel();
+		protected:			
 			void ResetAdventureLevel();
 			void StoreAdventureLevel();
 			void SetAdventureLevel(uint32 level);

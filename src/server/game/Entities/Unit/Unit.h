@@ -899,6 +899,7 @@ public:
 
     Unit* GetAttacker() const { return m_attacker; };
     Unit* GetVictim() const { return m_victim; };
+	
     SpellInfo const* GetSpellInfo() const { return m_spellInfo; };
     SpellSchoolMask GetSchoolMask() const { return m_schoolMask; };
     DamageEffectType GetDamageType() const { return m_damageType; };
@@ -1435,6 +1436,13 @@ class Unit : public WorldObject
         AttackerSet const& getAttackers() const { return m_attackers; }
         bool isAttackingPlayer() const;
         Unit* GetVictim() const { return m_attacking; }
+
+		// Use this only when 100% sure there is a victim
+		Unit* EnsureVictim() const
+		{
+			ASSERT(m_attacking);
+			return  m_attacking;
+		}
 
         void CombatStop(bool includingCast = false);
         void CombatStopWithPets(bool includingCast = false);

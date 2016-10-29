@@ -84,6 +84,7 @@
 #include "GameObjectAI.h"
 #include "PoolMgr.h"
 #include "SavingSystem.h"
+#include "Transmogrification.h"
 
 #define ZONE_UPDATE_INTERVAL (2*IN_MILLISECONDS)
 
@@ -516,7 +517,8 @@ inline void KillRewarder::_InitXP(Player* player)
 	if (sWorld->getBoolConfig(CONFIG_CUSTOM_ADVENTURE_MODE) && sWorld->getIntConfig(CONFIG_CUSTOM_ADVENTURE_KILLXP))
 	{
 		uint32 victim_level = _victim->getLevel();
-		uint32 multiplier = 1;
+		int multiplier = 1;
+		int attacker_level = player->getLevel();
 
 		Creature * pCreature = _victim->ToCreature();
 
@@ -526,10 +528,15 @@ inline void KillRewarder::_InitXP(Player* player)
 		if (pCreature->isWorldBoss())
 			multiplier = 40;
 
-		if ((sWorld->getIntConfig(CONFIG_CUSTOM_ADVENTURE_BOSSONLYXP) > player->GetAdventureLevel()) && !pCreature->isWorldBoss())
+		if ((sWorld->getIntConfig(CONFIG_CUSTOM_ADVENTURE_BOSSONLYXP) < player->GetAdventureLevel()) && !pCreature->isWorldBoss())
 			multiplier = 0;
 
-		player->AddAdventureXP(sWorld->getIntConfig(CONFIG_CUSTOM_ADVENTURE_KILLXP)*multiplier*victim_level*(victim_level + 2 - player->getLevel()));
+		if ((victim_level + 3 - attacker_level) > 0)
+			multiplier = victim_level * multiplier;
+		else
+			multiplier = (victim_level * multiplier)/2;
+
+		player->AddAdventureXP(sWorld->getIntConfig(CONFIG_CUSTOM_ADVENTURE_KILLXP)*multiplier);
 	}
 }
 
@@ -12468,7 +12475,11 @@ Item* Player::StoreNewItem(ItemPosCountVec const& dest, uint32 item, bool update
 
 		if (sWorld->getBoolConfig(CONFIG_CUSTOM_ADVENTURE_MODE) && sWorld->getBoolConfig(CONFIG_CUSTOM_RANDOMIZE_ITEM))
 		{
-			uint32 adventure_level = GetAdventureLevel();
+			uint32 adventure_level;
+			if (GetGroup())
+				adventure_level = GetAdventureLevelGroup();
+			else
+				adventure_level = GetAdventureLevel();
 
 			if (roll_chance_f(sWorld->getFloatConfig(CONFIG_CUSTOM_RANDOMIZE_ITEM_CHANCE)*adventure_level))
 			{
@@ -12476,14 +12487,13 @@ Item* Player::StoreNewItem(ItemPosCountVec const& dest, uint32 item, bool update
 				uint32 itemClass = pProto->Class;
 				uint32 ItemSubClass = pProto->SubClass;
 				uint32 ItemQuality = pProto->Quality;
-
-				uint32 adventure_level = GetAdventureLevel();
-				uint32 reforgeLevel;
+				
+				uint32 reforgeLevel = 0;
 
 				uint32 minQuality = sWorld->getIntConfig(CONFIG_CUSTOM_RANDOMIZE_ITEM_MIN_QUALITY);
 				uint32 minLevel = sWorld->getIntConfig(CONFIG_CUSTOM_RANDOMIZE_ITEM_MIN_LEVEL);
 
-				if (pProto && (itemClass == 2 || itemClass == 4) && (ItemQuality > minQuality) && (itemLevel>minLevel) && (SubstractAdventureXP(sWorld->getIntConfig(CONFIG_CUSTOM_ADVENTURE_ITEMXP)*itemLevel*ItemQuality*ItemQuality)))
+				if (pProto && (itemClass == 2 || itemClass == 4) && (ItemQuality > minQuality) && (itemLevel>minLevel))
 				{
 					if (!randomPropertyId)
 						randomPropertyId = pProto->RandomProperty;
@@ -12520,9 +12530,13 @@ Item* Player::StoreNewItem(ItemPosCountVec const& dest, uint32 item, bool update
 
 					if (result)
 					{
-						Field* fields = result->Fetch();
-						randomPropertyId = fields[0].GetUInt32();				
-					}
+						if (SubstractAdventureXP(sWorld->getIntConfig(CONFIG_CUSTOM_ADVENTURE_ITEMXP)*itemLevel*ItemQuality*ItemQuality))
+						{ 
+							Field* fields = result->Fetch();
+							randomPropertyId = fields[0].GetUInt32();
+						}
+						else sLog->outDebug(LOG_FILTER_PLAYER_ITEMS, "Not enough adventure xp to apply random property to item %u", item);
+					} 
 
 					sLog->outDebug(LOG_FILTER_PLAYER_ITEMS, "Adding random property %u to item %u", randomPropertyId, item);
 				}		
@@ -12838,7 +12852,12 @@ void Player::SetVisibleItemSlot(uint8 slot, Item* pItem)
 { 
     if (pItem)
     {
-		SetUInt32Value(PLAYER_VISIBLE_ITEM_1_ENTRYID + (slot * 2), pItem->GetEntry());
+	//	SetUInt32Value(PLAYER_VISIBLE_ITEM_1_ENTRYID + (slot * 2), pItem->GetEntry());
+		if (uint32 entry = sTransmogrification->GetFakeEntry(pItem))
+			SetUInt32Value(PLAYER_VISIBLE_ITEM_1_ENTRYID + (slot * 2), entry);
+		else
+			SetUInt32Value(PLAYER_VISIBLE_ITEM_1_ENTRYID + (slot * 2), pItem->GetEntry());
+
         SetUInt16Value(PLAYER_VISIBLE_ITEM_1_ENCHANTMENT + (slot * 2), 0, pItem->GetEnchantmentId(PERM_ENCHANTMENT_SLOT));
         SetUInt16Value(PLAYER_VISIBLE_ITEM_1_ENCHANTMENT + (slot * 2), 1, pItem->GetEnchantmentId(TEMP_ENCHANTMENT_SLOT));
     }
@@ -12961,6 +12980,7 @@ void Player::MoveItemFromInventory(uint8 bag, uint8 slot, bool update)
 { 
     if (Item* it = GetItemByPos(bag, slot))
     {
+		sTransmogrification->DeleteFakeEntry(this, it);
         ItemRemovedQuestCheck(it->GetEntry(), it->GetCount());
         RemoveItem(bag, slot, update);
 		UpdateTitansGrip();
@@ -18091,6 +18111,9 @@ bool Player::LoadFromDB(uint32 guid, SQLQueryHolder *holder)
 
 	// Init charm info
 	PrepareCharmAISpells();
+	//Custom
+
+	_LoadAdventureLevel(holder->GetPreparedResult(PLAYER_LOGIN_QUERY_CUSTOM_ADVENTURE_MODE));
 
 	// Fix aurastate auras, depending on health!
 	// Set aurastate manualy, prevents aura switching
@@ -18191,6 +18214,26 @@ void Player::_LoadActions(PreparedQueryResult result)
         } while (result->NextRow());
     }
 }
+
+//custom
+void Player::_LoadAdventureLevel(PreparedQueryResult result)
+{
+	// QueryResult *result = CharacterDatabase.PQuery("SELECT adventurelevel,adventurexp FROM character_custom_data WHERE guid = '%u'", m_guid.GetCounter());
+	if (result)
+	{
+		Field* fields = result->Fetch();
+		adventure_level = fields[0].GetUInt32();
+		adventure_xp = fields[1].GetUInt32();		
+	}
+	else
+	{
+		adventure_level = 1;
+		adventure_xp = 0;
+	}
+
+	SetAdventureLevel(adventure_level);
+}
+
 
 void Player::_LoadAuras(PreparedQueryResult result, uint32 timediff)
 { 
@@ -27145,35 +27188,29 @@ void Player::SummonPet(uint32 entry, float x, float y, float z, float ang, PetTy
 }
 
 //Custom
-uint32 Player::GetAdventureLevel()
+uint32 Player::GetAdventureLevelGroup()
 {
-	uint32 level = 0;
-	uint32 members = 0;
-
+	uint32 level = GetAdventureLevel();
+	
 	if (Group* pGroup = m_group.getTarget())
 	{
 		for (GroupReference* itr = pGroup->GetFirstMember(); itr != nullptr; itr = itr->next())
 		{
 			Player* pGroupGuy = itr->GetSource();
-			
+
 			if (pGroupGuy && pGroupGuy->IsAlive())
 			{
-				if (pGroupGuy->_GetAdventureLevel() < level)
-					level = pGroupGuy->_GetAdventureLevel();
+				if (pGroupGuy->GetAdventureLevel() < level)
+					level = pGroupGuy->GetAdventureLevel();
 			}
 
 		}
-
-		level = ceil(level / members);
 	}
-	else
-		level = _GetAdventureLevel();
-
-
+	
 	return level;
 }
 
-uint32 Player::_GetAdventureLevel()
+uint32 Player::GetAdventureLevel()
 {
 	uint32 level = 0;
 
@@ -27202,11 +27239,21 @@ void Player::SetAdventureLevel(uint32 level)
 	if (level > sWorld->getIntConfig(CONFIG_CUSTOM_ADVENTURE_MAX_LEVEL))
 		level = sWorld->getIntConfig(CONFIG_CUSTOM_ADVENTURE_MAX_LEVEL);
 
-	if (GetAdventureLevel() == level)
+	if (GetAdventureLevel() == level && !GetGroup())
 		return;
-
+	else if (GetGroup() && adventure_group_level == GetAdventureLevelGroup())
+		return;
+		
 	//Apply Aura
 	SetAuraStack(ADVENTURE_AURA, this,level);
+
+	if (GetGroup())
+	{
+		adventure_group_level = GetAdventureLevelGroup();
+		SetAuraStack(GROUP_ADVENTURE_AURA, this,GetAdventureLevelGroup());
+	}
+	else if (HasAura(GROUP_ADVENTURE_AURA))
+		RemoveAurasDueToSpell(GROUP_ADVENTURE_AURA);
 }
 
 
@@ -27217,6 +27264,8 @@ void Player::AddAdventureXP(int32 xp)
 		uint32 max_xp = sWorld->getIntConfig(CONFIG_CUSTOM_ADVENTURE_LEVELXP) * adventure_level;
 		adventure_xp += xp;
 
+	//	TC_LOG_DEBUG("Granting %d xp to player %s. Lvl:%u. Current xp: %u Max xp: %u", xp, GetName(), adventure_level, adventure_xp, max_xp);			//custom-debug
+
 		if (adventure_xp > max_xp)
 		{
 			adventure_xp -= max_xp;
@@ -27225,7 +27274,8 @@ void Player::AddAdventureXP(int32 xp)
 			SetAdventureLevel(adventure_level);
 		}
 	}
-	else SubstractAdventureXP(abs(xp));
+	else if (adventure_xp > abs(xp))
+		SubstractAdventureXP(abs(xp));
 }
 
 bool Player::SubstractAdventureXP(int32 xp)
@@ -27233,11 +27283,11 @@ bool Player::SubstractAdventureXP(int32 xp)
 	adventure_xp -= xp;
 	uint32 currentLevel = adventure_level;
 
-	while (adventure_xp < 0 && adventure_level > 1)
+	while (adventure_xp < 0 && currentLevel > 1)
 	{
-		adventure_level--;
+		currentLevel--;
 		adventure_xp += sWorld->getIntConfig(CONFIG_CUSTOM_ADVENTURE_LEVELXP) * (adventure_level);
-		SetAdventureLevel(adventure_level);
+		SetAdventureLevel(currentLevel);
 		return true;
 	}
 
@@ -27272,74 +27322,3 @@ void Player::StoreAdventureLevel()
 	CharacterDatabase.CommitTransaction(trans);	
 }
 
-/*
-void Player::_CreateCustomAura(uint32 spellid, uint32 stackcount, int32 remaincharges)
-{
-	SpellEntry const* spellproto = sSpellStore.LookupEntry(spellid);
-	if (!spellproto)
-	{
-		sLog->outError("Unknown spell (spellid %u), ignore.", spellid);
-		return;
-	}
-
-	ObjectGuid object;
-
-	if (spellproto->StackAmount < stackcount)
-		stackcount = spellproto->StackAmount;
-
-	AuraApplicationMapBounds range = m_appliedAuras.equal_range(ADVENTURE_AURA);
-
-	for (AuraApplicationMap::const_iterator itr = range.first; itr != range.second; ++itr)
-	{
-		if (itr->second->GetBase()->GetStackAmount() == stackcount)
-			return;
-		else
-		{
-			itr->second->GetBase()->SetStackAmount(stackcount);
-			return;
-		}
-	}
-
-	uint32 remaintime;
-	uint32 maxduration;
-
-	SpellDurationEntry const* du = sSpellDurationStore.LookupEntry(spellproto->DurationIndex);
-
-	if (du)
-	{
-		remaintime = (du->Duration[0] == -1) ? -1 : abs(du->Duration[0]);
-		maxduration = (du->Duration[2] == -1) ? -1 : abs(du->Duration[2]);
-	}
-	else
-	{
-		remaintime = -1;
-		maxduration = -1;
-	}
-
-
-	if (remaincharges)
-		remaincharges = spellproto->procCharges;
-
-	SpellAuraHolder* holder = CreateSpellAuraHolder(spellproto, this, this);
-	holder->SetLoadedState(GetObjectGuid(), object, stackcount, remaincharges, maxduration, remaintime);
-
-		for (int32 i = 0; i < MAX_EFFECT_INDEX; ++i)
-		{
-			uint8 eff = spellproto->Effect[i];
-
-			if (eff >= TOTAL_SPELL_EFFECTS)
-				continue;
-
-			if (IsAreaAuraEffect(eff) ||
-				eff == SPELL_EFFECT_APPLY_AURA ||
-				eff == SPELL_EFFECT_PERSISTENT_AREA_AURA)
-			{
-				Aura* aura = CreateAura(spellproto, SpellEffectIndex(i), nullptr, holder, this);
-				holder->AddAura(aura, SpellEffectIndex(i));
-			}
-		}
-		AddSpellAuraHolder(holder);
-
-	}
-}
-*/
