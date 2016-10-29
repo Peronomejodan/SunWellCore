@@ -37,8 +37,8 @@ class Totem : public Minion
 
         bool UpdateStats(Stats /*stat*/) { return true; }
         bool UpdateAllStats() { return true; }
-        void UpdateResistances(uint32 /*school*/) {}
-        void UpdateArmor() {}
+		void UpdateResistances(uint32 /*school*/, float) {}
+		void UpdateArmor(float bonus = 0.0f) {}
         void UpdateMaxHealth() {}
         void UpdateMaxPower(Powers /*power*/) {}
         void UpdateAttackPowerAndDamage(bool /*ranged*/) {}

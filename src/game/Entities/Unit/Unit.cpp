@@ -2924,8 +2924,14 @@ float Unit::GetUnitMissChance(WeaponAttackType attType) const
 { 
     float miss_chance = 5.00f;
 
-    if (Player const* player = ToPlayer())
-        miss_chance += player->GetMissPercentageFromDefence();
+	if (Player const* player = ToPlayer())
+	{
+		// custom		
+		if (sWorld->getBoolConfig(CONFIG_CUSTOM_RULES))
+			miss_chance = 8.00f;
+
+		miss_chance += player->GetMissPercentageFromDefence();
+	}
 
     if (attType == RANGED_ATTACK)
         miss_chance -= GetTotalAuraModifier(SPELL_AURA_MOD_ATTACKER_RANGED_HIT_CHANCE);

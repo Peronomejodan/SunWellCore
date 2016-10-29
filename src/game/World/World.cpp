@@ -527,6 +527,8 @@ void World::LoadConfigSettings(bool reload)
     rate_values[RATE_ARENA_POINTS] = sConfigMgr->GetFloatDefault("Rate.ArenaPoints", 1.0f);
     rate_values[RATE_INSTANCE_RESET_TIME] = sConfigMgr->GetFloatDefault("Rate.InstanceResetTime", 1.0f);
     rate_values[RATE_TALENT] = sConfigMgr->GetFloatDefault("Rate.Talent", 1.0f);
+	rate_values[RATE_PLAYER_MISS_CHANCE] = sConfigMgr->GetFloatDefault("Rate.Talent", 5.0f);
+
     if (rate_values[RATE_TALENT] < 0.0f)
     {
         sLog->outError("Rate.Talent (%f) must be > 0. Using 1 instead.", rate_values[RATE_TALENT]);
@@ -1065,6 +1067,25 @@ void World::LoadConfigSettings(bool reload)
     m_float_configs[CONFIG_ARENA_MATCHMAKER_RATING_MODIFIER]         = sConfigMgr->GetFloatDefault("Arena.ArenaMatchmakerRatingModifier", 24.0f);
 
     m_bool_configs[CONFIG_OFFHAND_CHECK_AT_SPELL_UNLEARN]            = sConfigMgr->GetBoolDefault("OffhandCheckAtSpellUnlearn", true);
+
+	//custom
+	m_bool_configs[CONFIG_CUSTOM_RULES] = sConfigMgr->GetBoolDefault("CustomRules", false);
+	m_bool_configs[CONFIG_CUSTOM_RESISTANCES] = sConfigMgr->GetBoolDefault("Custom.CustomResistances", false);
+	m_bool_configs[CONFIG_CUSTOM_ADVENTURE_MODE] = sConfigMgr->GetBoolDefault("Custom.AdventureMode", false);
+
+	m_int_configs[CONFIG_CUSTOM_ADVENTURE_MAX_LEVEL] = sConfigMgr->GetIntDefault("Custom.AdventureMaxLevel", 0);
+	m_int_configs[CONFIG_CUSTOM_ADVENTURE_KILLXP] = sConfigMgr->GetIntDefault("Custom.AdventureKillXP", 0);
+	m_int_configs[CONFIG_CUSTOM_ADVENTURE_PVPXP] = sConfigMgr->GetIntDefault("Custom.AdventurePVPXP", 0);
+	m_int_configs[CONFIG_CUSTOM_ADVENTURE_DEATHXP] = sConfigMgr->GetIntDefault("Custom.AdventureDeathXP", 0);
+	m_int_configs[CONFIG_CUSTOM_ADVENTURE_ITEMXP] = sConfigMgr->GetIntDefault("Custom.AdventureItemXP", 0);
+	m_int_configs[CONFIG_CUSTOM_ADVENTURE_LEVELXP] = sConfigMgr->GetIntDefault("Custom.AdventureLevelXP", 0);
+	m_int_configs[CONFIG_CUSTOM_ADVENTURE_BOSSONLYXP] = sConfigMgr->GetIntDefault("Custom.AdventureBossOnlyXP", 5);
+
+	m_bool_configs[CONFIG_CUSTOM_RANDOMIZE_ITEM] = sConfigMgr->GetBoolDefault("Custom.RandomizeItem", false);
+	m_int_configs[CONFIG_CUSTOM_RANDOMIZE_ITEM_MIN_LEVEL] = sConfigMgr->GetIntDefault("Custom.RandomizeItemMinLevel", 15);
+	m_int_configs[CONFIG_CUSTOM_RANDOMIZE_ITEM_MIN_QUALITY] = sConfigMgr->GetIntDefault("Custom.RandomizeItemMinQuality", 2);
+	m_int_configs[CONFIG_CUSTOM_RANDOMIZE_ITEM_DIFF] = sConfigMgr->GetIntDefault("Custom.RandomizeItemDiff", 5);
+	m_int_configs[CONFIG_CUSTOM_RANDOMIZE_ITEM_CHANCE] = sConfigMgr->GetIntDefault("Custom.RandomizeItemChance", 10);
 
     if (int32 clientCacheId = sConfigMgr->GetIntDefault("ClientCacheVersion", 0))
     {

@@ -556,4 +556,9 @@ void CharacterDatabaseConnection::DoPrepareStatements()
 
     // Deserter tracker
     PrepareStatement(CHAR_INS_DESERTER_TRACK, "INSERT INTO battleground_deserters (guid, type, datetime) VALUES (?, ?, NOW())", CONNECTION_ASYNC);
+
+	//Custom
+	PrepareStatement(CHAR_DELETE_ADVENTURE_LEVEL, "DELETE FROM character_custom_data WHERE guid = ? ", CONNECTION_ASYNC);
+	PrepareStatement(CHAR_INSERT_ADVENTURE_LEVEL, "INSERT INTO character_custom_data VALUES (?, ?, ?)", CONNECTION_ASYNC);
+	PrepareStatement(CHAR_QUERY_ADVENTURE_LEVEL, "SELECT adventurelevel,adventurexp FROM character_custom_data WHERE guid = ?", CONNECTION_SYNCH);
 }
