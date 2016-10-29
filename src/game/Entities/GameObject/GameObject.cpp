@@ -802,6 +802,9 @@ void GameObject::SaveToDB()
 
 void GameObject::SaveToDB(uint32 mapid, uint8 spawnMask, uint32 phaseMask)
 { 
+	if (!sWorld->getBoolConfig(CONFIG_DEVELOPER_BUILD_ENABLED))
+		return;
+
     const GameObjectTemplate* goI = GetGOInfo();
 
     if (!goI)
